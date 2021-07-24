@@ -7,7 +7,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from geo_calc.models import GoogleAddrWithCoord, SearchTerms
-from settings import GOOGLE_MAP_API, API_KEY
+from code_challenge.settings import GOOGLE_MAP_API, API_KEY
 
 
 class SearchLocationViewSet(viewsets.ModelViewSet):
