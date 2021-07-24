@@ -1,6 +1,6 @@
 import math
 from decimal import Decimal, ROUND_DOWN
-from typing import Union
+from typing import Union, List
 
 import requests
 from rest_framework import viewsets, status
@@ -47,6 +47,30 @@ class SearchLocationViewSet(viewsets.ModelViewSet):
         # output distance in meters rounding down to the second decimal.
         return Decimal(r_earth * c).quantize(Decimal((0, (1,), -2)), rounding=ROUND_DOWN)
 
+    def google_map_api_call(self, search_text: str) -> Union[List, Response]:
+
+        response = requests.get(
+            f"{GOOGLE_MAP_API}?address={search_text}&key={API_KEY}"
+        )
+        rstatus = response.json().get("status")
+        if rstatus == 'ZERO_RESULTS':
+            return Response(
+                f"Google API responded with status: {rstatus} for the search string {search_text}. Check search terms and try again",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif rstatus == 'REQUEST_DENIED':
+            return Response(
+                f"Google API responded with status: {rstatus}. Check .env for correct API key and try again.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif rstatus != 'OK':
+            return Response(
+                f"Google API responded with status: {rstatus}.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return response.json().get("results")
+
     def list(self, request, *args, **kwargs):
 
         try:
@@ -65,18 +89,10 @@ class SearchLocationViewSet(viewsets.ModelViewSet):
                 formatted_address = location_from_search.formatted_address
             else:  # create the new coord and search record
                 search_term = loc.replace(" ", "+")
-                response = requests.get(
-                    f"{GOOGLE_MAP_API}?address={search_term}&key={API_KEY}"
-                )
-                rstatus = response.json().get("status")
-                if rstatus != 'OK':
-                    return Response(
-                        f"Google API responded with status: {rstatus}. Check API key in .env file",
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                results = response.json().get("results")
-                if results:
+                results = self.google_map_api_call(search_term)
+                if isinstance(results, Response):
+                    return results
+                elif results:
                     results = results[0]
                     lat = results["geometry"]["location"].get("lat")
                     lng = results["geometry"]["location"].get("lng")
@@ -94,11 +110,6 @@ class SearchLocationViewSet(viewsets.ModelViewSet):
                         coord_record_id=coord.id,
                         search_term=loc
                     ).save()
-                else:
-                    Response(
-                        "Google API did not return a response for this search term.",
-                        status=status.HTTP_424_FAILED_DEPENDENCY
-                    )
             final_data[f"Location {idx+1}"] = formatted_address
         distance = self.haversine(coordinates[0], coordinates[1])
         final_data["Distance Between Locations"] = f"{str(distance)} meters"
