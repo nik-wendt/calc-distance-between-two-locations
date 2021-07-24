@@ -3,6 +3,10 @@ Uses google maps api to get geo coordinates
 
 ## Setup
 ```
+cp .env.example .env
+```
+Add your google api key to the .env file
+```
 python -m venv code_challenge_virt_env
 source code_challenge_virt_env/bin/activate
 pip install -r requirements.txt
