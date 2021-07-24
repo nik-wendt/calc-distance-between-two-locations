@@ -68,9 +68,16 @@ class SearchLocationViewSet(viewsets.ModelViewSet):
                 response = requests.get(
                     f"{GOOGLE_MAP_API}?address={search_term}&key={API_KEY}"
                 )
-                results = response.json().get("results")[0]
+                rstatus = response.json().get("status")
+                if rstatus != 'OK':
+                    return Response(
+                        f"Google API responded with status: {rstatus}. Check API key in .env file",
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
+                results = response.json().get("results")
                 if results:
+                    results = results[0]
                     lat = results["geometry"]["location"].get("lat")
                     lng = results["geometry"]["location"].get("lng")
                     formatted_address = results["formatted_address"]
